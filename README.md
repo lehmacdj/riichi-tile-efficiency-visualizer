@@ -3,6 +3,7 @@ Tiny riichi tile efficiency visualizer I built while trying to improve my tile e
 
 ## TODOs
 Things that I kind of want to implement / improve:
+- Fix tile rendering: https://github.com/FluffyStuff/riichi-mahjong-tiles
 - Complex shape decomposition is completely non-functional
 - Lag when pre-computing shanten/ukeire with 14 tiles, move processing to web workers
 - Add tests for shanten calculations/use Rust's libriichi via WASM for calculations; I'm not aware of any problems, but it's not the most robust
