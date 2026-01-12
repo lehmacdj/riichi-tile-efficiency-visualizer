@@ -1,8 +1,18 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Riichi Tile Efficiency Visualizer
+Tiny riichi tile efficiency visualizer I built while trying to improve my tile efficiency.
 
-# Run and deploy your AI Studio app
+## TODOs
+Things that I kind of want to implement / improve:
+- Complex shape decomposition is completely non-functional
+- Lag when pre-computing shanten/ukeire with 14 tiles, move processing to web workers
+- Add tests for shanten calculations/use Rust's libriichi via WASM for calculations; I'm not aware of any problems, but it's not the most robust
+- Add history / ability to revert to previous states / undo
+  - chronological history
+  - tree based history, e.g. to explore multiple branches, i.e. discarding different tiles from the same Hand
+- Separate discarded tiles from the wall
+- Dora indicators, dealer/round winds
+
+## Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.
 
