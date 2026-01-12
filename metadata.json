@@ -1,0 +1,5 @@
+{
+  "name": "Riichi Mahjong Efficiency Visualizer",
+  "description": "A specialized tool for Riichi Mahjong players to visualize tile efficiency (Ukeire), calculate Shanten, and analyze hand structure decomposition.",
+  "requestFramePermissions": []
+}
