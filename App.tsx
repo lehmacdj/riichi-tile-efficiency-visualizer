@@ -11,16 +11,21 @@ function countUkeire(tiles: string[], wall: WallState): number {
   return tiles.reduce((sum, t) => sum + (wall[t] || 0), 0);
 }
 
-function formatShanten(shanten: number): string {
-  if (shanten <= -1) return 'Win';
-  if (shanten === 0) return 'Tenpai';
-  return `${shanten}s`;
-}
-
 function formatShantenStatus(shanten: number): string {
   if (shanten <= -1) return 'Ron / Tsumo';
   if (shanten === 0) return 'Tenpai';
   return `${shanten}-Shanten`;
+}
+
+// Button style constants
+const BUTTON_BASE = 'px-3 py-1.5 rounded text-xs font-bold transition-colors border';
+const BUTTON_TOGGLE_ON = 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500';
+const BUTTON_TOGGLE_OFF = 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-600';
+const BUTTON_DISABLED = 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed opacity-50';
+const BUTTON_SECONDARY = 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600';
+
+function getToggleButtonClass(isActive: boolean): string {
+  return `${BUTTON_BASE} ${isActive ? BUTTON_TOGGLE_ON : BUTTON_TOGGLE_OFF}`;
 }
 
 const App: React.FC = () => {
@@ -41,26 +46,43 @@ const App: React.FC = () => {
 
   const sortedHand = useMemo(() => sortTiles(hand), [hand]);
 
-  // Compute best discard for 14-tile hand
+  // Compute best discard(s) for 14-tile hand
   const bestDiscard = useMemo(() => {
     if (hand.length !== 14 || !result?.discardResults) return null;
 
-    let best: { index: number; ukeire: UkeireResult } | null = null;
     let bestScore = -Infinity;
+    let bestUkeire: UkeireResult | null = null;
+    const tileScores = new Map<number, number>();
 
+    // First pass: find best score and compute all scores
+    // Score prioritizes: lower shanten > more shanten-improving tiles > more shape-improving tiles
     result.discardResults.forEach((ukeire, index) => {
-      // Score: prioritize lower shanten, then higher ukeire count
-      const ukeireCount = countUkeire(ukeire.shantenImprovement, wall);
-      const score = -ukeire.shanten * 1000 + ukeireCount;
+      const shantenImprovementCount = countUkeire(ukeire.shantenImprovement, wall);
+      const shapeImprovementCount = countUkeire(ukeire.shapeImprovement, wall);
+      const score =
+        -ukeire.shanten * 1000000 +
+        shantenImprovementCount * 1000 +
+        shapeImprovementCount;
+      tileScores.set(index, score);
 
       if (score > bestScore) {
         bestScore = score;
-        best = { index, ukeire };
+        bestUkeire = ukeire;
       }
     });
 
-    return best;
-  }, [hand.length, result, wall]);
+    if (!bestUkeire) return null;
+
+    // Second pass: collect all tiles with the best score
+    const bestTiles = new Set<string>();
+    tileScores.forEach((score, index) => {
+      if (score === bestScore) {
+        bestTiles.add(sortedHand[index]?.str);
+      }
+    });
+
+    return { ukeire: bestUkeire, bestTiles };
+  }, [hand.length, result, wall, sortedHand]);
 
   // Get current stats based on hand state and hover (used for wall highlights)
   const stats: UkeireResult | null = useMemo(() => {
@@ -86,40 +108,42 @@ const App: React.FC = () => {
 
   // Wall highlights based on current state
   const wallHighlights = useMemo(() => {
-    // When loading, show no highlights
-    if (!stats) {
-      return { green: [] as string[], yellow: [] as string[] };
-    }
+    const noHighlights = {
+      shantenImprovement: [] as string[],
+      shapeImprovement: [] as string[]
+    };
+
+    if (!stats) return noHighlights;
 
     // Priority 1: Discard Preview
     if (hand.length === 14 && hoveredTileIndex !== null) {
       return {
-        green: stats.shantenImprovement,
-        yellow: stats.shapeImprovement
+        shantenImprovement: stats.shantenImprovement,
+        shapeImprovement: stats.shapeImprovement
       };
     }
 
     // Priority 2: Block Analysis
     if (hoveredBlock) {
       return {
-        green: hoveredBlock.ukeire.green,
-        yellow: hoveredBlock.ukeire.yellow
+        shantenImprovement: hoveredBlock.ukeire.green,
+        shapeImprovement: hoveredBlock.ukeire.yellow
       };
     }
 
     // Priority 3: General Status
     return {
-      green: stats.shantenImprovement,
-      yellow: stats.shapeImprovement
+      shantenImprovement: stats.shantenImprovement,
+      shapeImprovement: stats.shapeImprovement
     };
   }, [hoveredBlock, stats, hand.length, hoveredTileIndex]);
 
   // Ukeire counts for display
   const ukeireCounts = useMemo(() => {
-    if (!stats) return { green: 0, yellow: 0 };
+    if (!stats) return { shantenImprovement: 0, shapeImprovement: 0 };
     return {
-      green: countUkeire(stats.shantenImprovement, wall),
-      yellow: countUkeire(stats.shapeImprovement, wall),
+      shantenImprovement: countUkeire(stats.shantenImprovement, wall),
+      shapeImprovement: countUkeire(stats.shapeImprovement, wall),
     };
   }, [stats, wall]);
 
@@ -129,8 +153,8 @@ const App: React.FC = () => {
     const { ukeire } = bestDiscard;
     return {
       shanten: ukeire.shanten,
-      green: countUkeire(ukeire.shantenImprovement, wall),
-      yellow: countUkeire(ukeire.shapeImprovement, wall),
+      shantenImprovementCount: countUkeire(ukeire.shantenImprovement, wall),
+      shapeImprovementCount: countUkeire(ukeire.shapeImprovement, wall),
     };
   }, [showBestDiscard, bestDiscard, wall]);
 
@@ -271,8 +295,8 @@ const App: React.FC = () => {
               wall={wall}
               onUpdateCount={handleUpdateWallCount}
               onSelectTile={handleSelectTile}
-              ukeireGreen={wallHighlights.green}
-              ukeireYellow={wallHighlights.yellow}
+              ukeireGreen={wallHighlights.shantenImprovement}
+              ukeireYellow={wallHighlights.shapeImprovement}
               discardPreviewMode={hand.length === 14 && hoveredTileIndex !== null}
             />
           </div>
@@ -285,8 +309,7 @@ const App: React.FC = () => {
         {/* Menu / Status Bar */}
         <div className="bg-slate-800 border-b border-slate-700/50 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-right flex items-baseline gap-2">
-              <span className="text-xs text-slate-400 font-bold tracking-wider">STATUS</span>
+            <div className="flex items-baseline gap-2">
               <span className={`text-xl font-bold flex items-center gap-2 ${isCalculating ? 'text-blue-400' : (displayShanten <= 0 ? 'text-green-400' : 'text-white')}`}>
                 {isCalculating && (
                   <svg className="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -301,66 +324,72 @@ const App: React.FC = () => {
             {/* Ukeire Counts Display */}
             {stats && (stats.shantenImprovement.length > 0 || stats.shapeImprovement.length > 0) && !isCalculating && (
               <div className="flex items-center ml-2 px-2 py-1 bg-slate-900 rounded border border-slate-600 font-mono text-sm font-bold">
-                <span className="text-green-400">{ukeireCounts.green}</span>
+                <span className="text-green-400">{ukeireCounts.shantenImprovement}</span>
                 <span className="text-slate-500 mx-1">+</span>
-                <span className="text-yellow-400">{ukeireCounts.yellow}</span>
+                <span className="text-yellow-400">{ukeireCounts.shapeImprovement}</span>
               </div>
             )}
 
             {/* Best Discard Display (shanten + acceptance, no highlights) */}
             {bestDiscardDisplay && !isCalculating && hoveredTileIndex === null && (
-              <div className="flex items-center ml-2 px-2 py-1 bg-amber-900/30 rounded border border-amber-700/50 font-mono text-sm font-bold">
-                <span className="text-amber-400 mr-2">
-                  Best: {formatShanten(bestDiscardDisplay.shanten)}
+              <div className="flex items-center ml-2 px-2 py-1 bg-slate-900 rounded border border-slate-600 font-mono text-sm font-bold">
+                <span className="text-slate-300 mr-2">
+                  Best: {formatShantenStatus(bestDiscardDisplay.shanten)}
                 </span>
-                <span className="text-green-400">{bestDiscardDisplay.green}</span>
+                <span className="text-green-400">{bestDiscardDisplay.shantenImprovementCount}</span>
                 <span className="text-slate-500 mx-1">+</span>
-                <span className="text-yellow-400">{bestDiscardDisplay.yellow}</span>
+                <span className="text-yellow-400">{bestDiscardDisplay.shapeImprovementCount}</span>
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Toggle: Auto-Draw */}
             <button
               onClick={handleToggleAutoDraw}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition-colors border ${
-                isAutoDraw
-                  ? 'bg-teal-600 border-teal-500 text-white hover:bg-teal-500'
-                  : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-600'
-              }`}
+              className={getToggleButtonClass(isAutoDraw)}
             >
               Auto-Draw: {isAutoDraw ? 'ON' : 'OFF'}
             </button>
 
-            {hand.length === 14 && (
-              <button
-                onClick={() => setShowBestDiscard(!showBestDiscard)}
-                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors border ${
-                  showBestDiscard
-                    ? 'bg-amber-600 border-amber-500 text-white hover:bg-amber-500'
-                    : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-600'
-                }`}
-              >
-                Show Best: {showBestDiscard ? 'ON' : 'OFF'}
-              </button>
-            )}
+            {/* Toggle: Show Best (disabled when < 14 tiles) */}
+            <button
+              onClick={() => setShowBestDiscard(!showBestDiscard)}
+              disabled={hand.length !== 14}
+              className={
+                hand.length !== 14
+                  ? `${BUTTON_BASE} ${BUTTON_DISABLED}`
+                  : getToggleButtonClass(showBestDiscard)
+              }
+            >
+              Show Best{hand.length === 14 ? `: ${showBestDiscard ? 'ON' : 'OFF'}` : ''}
+            </button>
 
+            <div className="w-px h-5 bg-slate-600 mx-1" />
+
+            {/* Primary: Draw Tile */}
             <button
               onClick={handleDraw}
               disabled={isAutoDraw || hand.length >= MAX_TILES_IN_HAND}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded text-xs font-bold text-white transition-colors border border-indigo-500 disabled:border-slate-600"
+              className={`${BUTTON_BASE} ${
+                isAutoDraw || hand.length >= MAX_TILES_IN_HAND
+                  ? 'bg-slate-700 border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
+                  : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500'
+              }`}
             >
               + Draw Tile
             </button>
+
             <button
               onClick={handleRandomize}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-200 transition-colors border border-slate-600"
+              className={`${BUTTON_BASE} ${BUTTON_SECONDARY}`}
             >
               Randomize
             </button>
+
             <button
               onClick={handleClear}
-              className="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-300 rounded text-xs font-bold transition-colors border border-red-900/50"
+              className={`${BUTTON_BASE} bg-slate-700 border-red-800/50 text-red-400 hover:bg-red-900/30 hover:text-red-300 hover:border-red-700/50`}
             >
               Clear
             </button>
@@ -368,16 +397,14 @@ const App: React.FC = () => {
         </div>
 
         {/* Hand View */}
-        <div className="max-w-6xl mx-auto w-full px-4 py-2">
-          <div className="flex justify-between items-center mb-1 px-2">
-            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Hand</h2>
-          </div>
+        <div className="max-w-6xl mx-auto w-full px-4 py-3">
           <HandView
             blocks={blocks}
             onDiscard={handleDiscard}
             onHoverTile={hand.length === 14 ? setHoveredTileIndex : () => {}}
             onHoverBlock={setHoveredBlock}
             hoveredTileIndex={hoveredTileIndex}
+            bestDiscardTiles={showBestDiscard && bestDiscard ? bestDiscard.bestTiles : null}
           />
         </div>
       </section>

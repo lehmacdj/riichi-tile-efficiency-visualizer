@@ -8,10 +8,11 @@ interface HandViewProps {
   onHoverTile: (index: number | null) => void;
   onHoverBlock: (block: HandBlock | null) => void;
   hoveredTileIndex: number | null;
+  bestDiscardTiles: Set<string> | null;
 }
 
-const HandView: React.FC<HandViewProps> = ({ 
-  blocks, onDiscard, onHoverTile, onHoverBlock, hoveredTileIndex 
+const HandView: React.FC<HandViewProps> = ({
+  blocks, onDiscard, onHoverTile, onHoverBlock, hoveredTileIndex, bestDiscardTiles
 }) => {
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
@@ -67,12 +68,16 @@ const HandView: React.FC<HandViewProps> = ({
                   const currentGlobalIndex = globalTileIndex++;
                   const isHovering = hoveredTileIndex === currentGlobalIndex;
                   
+                  const isBestDiscard = bestDiscardTiles !== null && bestDiscardTiles.has(tile.str);
+
                   return (
                     <div key={`${block.id}_${i}`} className="mx-px md:mx-0.5 relative">
                        {/* Discard Indicator */}
                        {isHovering && (
-                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] py-1 px-2 rounded shadow-lg z-50 font-bold whitespace-nowrap">
-                           DISCARD
+                         <div className={`absolute -top-10 left-1/2 -translate-x-1/2 text-white text-[10px] py-1 px-2 rounded shadow-lg z-50 font-bold whitespace-nowrap ${
+                           isBestDiscard ? 'bg-emerald-500' : 'bg-red-500'
+                         }`}>
+                           {isBestDiscard ? 'BEST' : 'DISCARD'}
                          </div>
                        )}
                        <Tile 
