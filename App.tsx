@@ -7,6 +7,22 @@ import Wall from './components/Wall';
 import HandView from './components/HandView';
 import { useUkeireCalculation } from './hooks/useUkeireCalculation';
 
+function countUkeire(tiles: string[], wall: WallState): number {
+  return tiles.reduce((sum, t) => sum + (wall[t] || 0), 0);
+}
+
+function formatShanten(shanten: number): string {
+  if (shanten <= -1) return 'Win';
+  if (shanten === 0) return 'Tenpai';
+  return `${shanten}s`;
+}
+
+function formatShantenStatus(shanten: number): string {
+  if (shanten <= -1) return 'Ron / Tsumo';
+  if (shanten === 0) return 'Tenpai';
+  return `${shanten}-Shanten`;
+}
+
 const App: React.FC = () => {
   // State
   const [wall, setWall] = useState<WallState>(INITIAL_WALL);
@@ -14,6 +30,7 @@ const App: React.FC = () => {
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null);
   const [hoveredBlock, setHoveredBlock] = useState<HandBlock | null>(null);
   const [isAutoDraw, setIsAutoDraw] = useState<boolean>(false);
+  const [showBestDiscard, setShowBestDiscard] = useState<boolean>(false);
 
   // Use the ukeire calculation hook
   const { status, result, getDiscardUkeire } = useUkeireCalculation({ hand, wall });
@@ -24,18 +41,41 @@ const App: React.FC = () => {
 
   const sortedHand = useMemo(() => sortTiles(hand), [hand]);
 
-  // Get current stats based on hand state and hover
+  // Compute best discard for 14-tile hand
+  const bestDiscard = useMemo(() => {
+    if (hand.length !== 14 || !result?.discardResults) return null;
+
+    let best: { index: number; ukeire: UkeireResult } | null = null;
+    let bestScore = -Infinity;
+
+    result.discardResults.forEach((ukeire, index) => {
+      // Score: prioritize lower shanten, then higher ukeire count
+      const ukeireCount = countUkeire(ukeire.shantenImprovement, wall);
+      const score = -ukeire.shanten * 1000 + ukeireCount;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = { index, ukeire };
+      }
+    });
+
+    return best;
+  }, [hand.length, result, wall]);
+
+  // Get current stats based on hand state and hover (used for wall highlights)
   const stats: UkeireResult | null = useMemo(() => {
-    // When loading, return null to indicate no data available
     if (status === 'loading') return null;
     if (!result) return null;
 
-    // When hovering a tile in a 14-tile hand, show that discard's ukeire
-    if (hand.length === 14 && hoveredTileIndex !== null) {
-      return getDiscardUkeire(hoveredTileIndex);
+    if (hand.length === 14) {
+      // Only show stats when hovering (for wall highlights)
+      if (hoveredTileIndex !== null) {
+        return getDiscardUkeire(hoveredTileIndex);
+      }
+      // Otherwise show nothing (no wall highlights)
+      return null;
     }
 
-    // Otherwise show current hand's ukeire
     return result.ukeire;
   }, [status, result, hand.length, hoveredTileIndex, getDiscardUkeire]);
 
@@ -77,21 +117,35 @@ const App: React.FC = () => {
   // Ukeire counts for display
   const ukeireCounts = useMemo(() => {
     if (!stats) return { green: 0, yellow: 0 };
-    const green = stats.shantenImprovement.reduce((sum, t) => sum + (wall[t] || 0), 0);
-    const yellow = stats.shapeImprovement.reduce((sum, t) => sum + (wall[t] || 0), 0);
-    return { green, yellow };
+    return {
+      green: countUkeire(stats.shantenImprovement, wall),
+      yellow: countUkeire(stats.shapeImprovement, wall),
+    };
   }, [stats, wall]);
+
+  // Best discard display (shanten + acceptance)
+  const bestDiscardDisplay = useMemo(() => {
+    if (!showBestDiscard || !bestDiscard) return null;
+    const { ukeire } = bestDiscard;
+    return {
+      shanten: ukeire.shanten,
+      green: countUkeire(ukeire.shantenImprovement, wall),
+      yellow: countUkeire(ukeire.shapeImprovement, wall),
+    };
+  }, [showBestDiscard, bestDiscard, wall]);
 
   // Status text for display
   const statusText = useMemo(() => {
     if (isCalculating) return "Analyzing...";
-    if (!stats) return "Ready";
 
-    const s = stats.shanten;
-    if (hand.length === 14 && hoveredTileIndex === null) return "Discard a tile";
-    if (s <= -1) return "Ron / Tsumo";
-    if (s === 0) return "Tenpai";
-    return `${s}-Shanten`;
+    // 14-tile hand: show "Discard a tile" unless hovering
+    if (hand.length === 14) {
+      if (hoveredTileIndex === null || !stats) return "Discard a tile";
+      return formatShantenStatus(stats.shanten);
+    }
+
+    if (!stats) return "Ready";
+    return formatShantenStatus(stats.shanten);
   }, [stats, hand.length, hoveredTileIndex, isCalculating]);
 
   // --- ACTIONS ---
@@ -252,6 +306,18 @@ const App: React.FC = () => {
                 <span className="text-yellow-400">{ukeireCounts.yellow}</span>
               </div>
             )}
+
+            {/* Best Discard Display (shanten + acceptance, no highlights) */}
+            {bestDiscardDisplay && !isCalculating && hoveredTileIndex === null && (
+              <div className="flex items-center ml-2 px-2 py-1 bg-amber-900/30 rounded border border-amber-700/50 font-mono text-sm font-bold">
+                <span className="text-amber-400 mr-2">
+                  Best: {formatShanten(bestDiscardDisplay.shanten)}
+                </span>
+                <span className="text-green-400">{bestDiscardDisplay.green}</span>
+                <span className="text-slate-500 mx-1">+</span>
+                <span className="text-yellow-400">{bestDiscardDisplay.yellow}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -265,6 +331,19 @@ const App: React.FC = () => {
             >
               Auto-Draw: {isAutoDraw ? 'ON' : 'OFF'}
             </button>
+
+            {hand.length === 14 && (
+              <button
+                onClick={() => setShowBestDiscard(!showBestDiscard)}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors border ${
+                  showBestDiscard
+                    ? 'bg-amber-600 border-amber-500 text-white hover:bg-amber-500'
+                    : 'bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                Show Best: {showBestDiscard ? 'ON' : 'OFF'}
+              </button>
+            )}
 
             <button
               onClick={handleDraw}
