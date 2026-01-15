@@ -17,6 +17,10 @@ Things that I want to improve, priority ordered based on how important I think t
   - tree based history, e.g. to explore multiple branches, i.e. discarding different tiles from the same Hand
   - chronological history; i.e. showing your discards
 - Add dora indicators, dealer/round winds
+- Calculate value of hands + yakus; show tiles that increase value of hands
+- Visualize graph of draws/discards that can lead to completing a hand (or just a particular shape)
+   - We can sort/quotient draw order where it is deterministic; e.g. if the 7m must be drawn to complete an 89m shape, we can split on that decision first to make the tree of possibilities less branchy
+   - Significant amounts of pruning would probably be necessary for 3-shanten and lower hands (2-shanten is probably computationally feasible to just brute force?)
 
 ## Run Locally
 **Prerequisites:**  Node.js
