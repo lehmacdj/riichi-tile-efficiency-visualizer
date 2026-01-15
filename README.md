@@ -5,7 +5,6 @@ My initial prototyping for this app can be found in [AI Studio](https://ai.studi
 
 ## TODOs
 Things that I want to improve, priority ordered based on how important I think they are (higher in list) and how complex I think they will be to implement (lower in list).
-- Tiles render properly, but have a transparent background which should be white instead
 - Don't return discarded tiles to the wall (i.e. count for that tile shouldn't increase, it should stay decreased)
 - Lag when pre-computing shanten/ukeire with 14 tiles, move processing to web workers so that UI doesn't stall + have useful loading states
 - Add tests for shanten calculations/use Rust's libriichi via WASM for calculations; I'm not aware of any problems, but it's not the most robust, and we need to add tests before tackling difficult game logic problems to be certain that our logic is robust.

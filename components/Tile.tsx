@@ -77,13 +77,15 @@ const Tile: React.FC<TileProps> = ({
       `}
     >
       {!imgError ? (
-        <img 
-          src={imgSrc} 
-          alt={str} 
-          className="w-full h-full object-contain drop-shadow-sm" 
-          loading="lazy"
-          onError={() => setImgError(true)}
-        />
+        <div className="w-full h-full bg-white rounded overflow-hidden">
+          <img
+            src={imgSrc}
+            alt={str}
+            className="w-full h-full object-contain drop-shadow-sm"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        </div>
       ) : (
         // Fallback to text if image fails
         <div className={`w-full h-full bg-slate-800 border border-slate-600 rounded flex flex-col items-center justify-center font-bold font-mono ${size === 'sm' ? 'text-xs' : 'text-base'}`}>
