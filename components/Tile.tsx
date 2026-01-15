@@ -16,15 +16,15 @@ interface TileProps {
 
 const getTileImageSrc = (suit: Suit, value: number) => {
   // Use jsDelivr for reliable content delivery
-  const baseUrl = 'https://cdn.jsdelivr.net/gh/FluffyStuff/riichi-mahjong-tiles@master/src/Regular';
-  
+  const baseUrl = 'https://cdn.jsdelivr.net/gh/FluffyStuff/riichi-mahjong-tiles@master/Regular';
+
   if (suit === 'm') return `${baseUrl}/Man${value}.svg`;
   if (suit === 'p') return `${baseUrl}/Pin${value}.svg`;
   if (suit === 's') return `${baseUrl}/Sou${value}.svg`;
-  
+
   // Honors
   const honorMap: Record<number, string> = {
-    1: 'Ton', 2: 'Nan', 3: 'Sha', 4: 'Pei', 
+    1: 'Ton', 2: 'Nan', 3: 'Shaa', 4: 'Pei',
     5: 'Haku', 6: 'Hatsu', 7: 'Chun'
   };
   return `${baseUrl}/${honorMap[value]}.svg`;
