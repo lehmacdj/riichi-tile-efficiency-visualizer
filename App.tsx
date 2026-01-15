@@ -205,8 +205,8 @@ const App: React.FC = () => {
     const nextHand = [...hand];
     nextHand.splice(rawIndex, 1);
 
+    // Copy wall state (discarded tiles stay out of the wall)
     const nextWall = { ...wall };
-    nextWall[tileToRemove.str] = (nextWall[tileToRemove.str] || 0) + 1;
 
     // Auto Draw Logic
     if (isAutoDraw) {
