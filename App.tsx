@@ -174,6 +174,28 @@ const App: React.FC = () => {
     setHand([]);
   };
 
+  const handleToggleAutoDraw = () => {
+    const newValue = !isAutoDraw;
+    setIsAutoDraw(newValue);
+
+    // When enabling Auto-Draw, immediately draw up to 14 tiles
+    if (newValue && hand.length < 14) {
+      let currentHand = [...hand];
+      let currentWall = { ...wall };
+
+      while (currentHand.length < 14) {
+        const available = TILE_ORDER.filter(t => currentWall[t.str] > 0);
+        if (available.length === 0) break;
+        const pick = available[Math.floor(Math.random() * available.length)];
+        currentHand.push(pick);
+        currentWall[pick.str]--;
+      }
+
+      setHand(currentHand);
+      setWall(currentWall);
+    }
+  };
+
   // Determine shanten for status display color
   const displayShanten = stats?.shanten ?? result?.shanten ?? 8;
 
@@ -234,7 +256,7 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsAutoDraw(!isAutoDraw)}
+              onClick={handleToggleAutoDraw}
               className={`px-3 py-1.5 rounded text-xs font-bold transition-colors border ${
                 isAutoDraw
                   ? 'bg-teal-600 border-teal-500 text-white hover:bg-teal-500'
