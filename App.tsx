@@ -17,6 +17,18 @@ function formatShantenStatus(shanten: number): string {
   return `${shanten}-Shanten`;
 }
 
+// Status display types
+type UkeireCounts = {
+  shantenImprovement: number;
+  shapeImprovement: number;
+};
+
+type StatusDisplay =
+  | { type: 'loading'; text: string }
+  | { type: 'prompt'; text: string }
+  | { type: 'win'; text: string }
+  | { type: 'shanten'; text: string; shanten: number; counts: UkeireCounts; prefix?: string };
+
 // Button style constants
 const BUTTON_BASE = 'px-3 py-1.5 rounded text-xs font-bold transition-colors border';
 const BUTTON_TOGGLE_ON = 'bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-500';
@@ -158,19 +170,60 @@ const App: React.FC = () => {
     };
   }, [showBestDiscard, bestDiscard, wall]);
 
-  // Status text for display
-  const statusText = useMemo(() => {
-    if (isCalculating) return "Analyzing...";
-
-    // 14-tile hand: show "Discard a tile" unless hovering
-    if (hand.length === 14) {
-      if (hoveredTileIndex === null || !stats) return "Discard a tile";
-      return formatShantenStatus(stats.shanten);
+  // Status display logic
+  const statusDisplay: StatusDisplay = useMemo(() => {
+    if (isCalculating) {
+      return { type: 'loading', text: "Analyzing..." };
     }
 
-    if (!stats) return "Ready";
-    return formatShantenStatus(stats.shanten);
-  }, [stats, hand.length, hoveredTileIndex, isCalculating]);
+    if (hand.length < 13) {
+      return { type: 'prompt', text: "Draw tiles to analyze" };
+    }
+
+    // 13-tile hand
+    if (hand.length === 13) {
+      if (!stats) return { type: 'prompt', text: "Ready" };
+      return {
+        type: 'shanten',
+        text: formatShantenStatus(stats.shanten),
+        shanten: stats.shanten,
+        counts: ukeireCounts
+      };
+    }
+
+    // 14-tile hand: check for hover preview first
+    if (hoveredTileIndex !== null && stats) {
+      return {
+        type: 'shanten',
+        text: formatShantenStatus(stats.shanten),
+        shanten: stats.shanten,
+        counts: ukeireCounts,
+        prefix: "After →"
+      };
+    }
+
+    // 14-tile hand: check for winning hand
+    const handShanten = calculateShanten(hand);
+    if (handShanten <= -1) {
+      return { type: 'win', text: "Agari" };
+    }
+
+    // 14-tile hand: show best discard if enabled
+    if (showBestDiscard && bestDiscardDisplay) {
+      return {
+        type: 'shanten',
+        text: formatShantenStatus(bestDiscardDisplay.shanten),
+        shanten: bestDiscardDisplay.shanten,
+        counts: {
+          shantenImprovement: bestDiscardDisplay.shantenImprovementCount,
+          shapeImprovement: bestDiscardDisplay.shapeImprovementCount
+        },
+        prefix: "Best →"
+      };
+    }
+
+    return { type: 'prompt', text: "Select a tile to discard" };
+  }, [isCalculating, hand, stats, hoveredTileIndex, showBestDiscard, bestDiscardDisplay, ukeireCounts]);
 
   // --- ACTIONS ---
 
@@ -274,9 +327,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Determine shanten for status display color
-  const displayShanten = stats?.shanten ?? result?.shanten ?? 8;
-
   return (
     <div className="h-screen w-full bg-slate-900 text-slate-100 font-sans flex flex-col overflow-hidden">
 
@@ -309,38 +359,42 @@ const App: React.FC = () => {
         {/* Menu / Status Bar */}
         <div className="bg-slate-800 border-b border-slate-700/50 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-baseline gap-2">
-              <span className={`text-xl font-bold flex items-center gap-2 ${isCalculating ? 'text-blue-400' : (displayShanten <= 0 ? 'text-green-400' : 'text-white')}`}>
-                {isCalculating && (
+            {/* Status Display */}
+            <div className="flex items-center gap-2">
+              {statusDisplay.type === 'loading' && (
+                <>
                   <svg className="animate-spin h-4 w-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                )}
-                {statusText}
-              </span>
+                  <span className="text-xl font-bold text-blue-400">{statusDisplay.text}</span>
+                </>
+              )}
+
+              {statusDisplay.type === 'prompt' && (
+                <span className="text-lg text-slate-400 italic">{statusDisplay.text}</span>
+              )}
+
+              {statusDisplay.type === 'win' && (
+                <span className="text-xl font-bold text-green-400">{statusDisplay.text}</span>
+              )}
+
+              {statusDisplay.type === 'shanten' && (
+                <>
+                  {statusDisplay.prefix && (
+                    <span className="text-sm text-slate-400 font-medium">{statusDisplay.prefix}</span>
+                  )}
+                  <span className={`text-xl font-bold ${statusDisplay.shanten <= 0 ? 'text-green-400' : 'text-white'}`}>
+                    {statusDisplay.text}
+                  </span>
+                  <div className="flex items-center ml-2 px-2 py-1 bg-slate-900 rounded border border-slate-600 font-mono text-sm font-bold">
+                    <span className="text-green-400">{statusDisplay.counts.shantenImprovement}</span>
+                    <span className="text-slate-500 mx-1">+</span>
+                    <span className="text-yellow-400">{statusDisplay.counts.shapeImprovement}</span>
+                  </div>
+                </>
+              )}
             </div>
-
-            {/* Ukeire Counts Display */}
-            {stats && (stats.shantenImprovement.length > 0 || stats.shapeImprovement.length > 0) && !isCalculating && (
-              <div className="flex items-center ml-2 px-2 py-1 bg-slate-900 rounded border border-slate-600 font-mono text-sm font-bold">
-                <span className="text-green-400">{ukeireCounts.shantenImprovement}</span>
-                <span className="text-slate-500 mx-1">+</span>
-                <span className="text-yellow-400">{ukeireCounts.shapeImprovement}</span>
-              </div>
-            )}
-
-            {/* Best Discard Display (shanten + acceptance, no highlights) */}
-            {bestDiscardDisplay && !isCalculating && hoveredTileIndex === null && (
-              <div className="flex items-center ml-2 px-2 py-1 bg-slate-900 rounded border border-slate-600 font-mono text-sm font-bold">
-                <span className="text-slate-300 mr-2">
-                  Best: {formatShantenStatus(bestDiscardDisplay.shanten)}
-                </span>
-                <span className="text-green-400">{bestDiscardDisplay.shantenImprovementCount}</span>
-                <span className="text-slate-500 mx-1">+</span>
-                <span className="text-yellow-400">{bestDiscardDisplay.shapeImprovementCount}</span>
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
