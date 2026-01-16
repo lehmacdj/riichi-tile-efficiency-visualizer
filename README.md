@@ -4,7 +4,7 @@ Tiny riichi tile efficiency visualizer I built while trying to improve my tile e
 My initial prototyping for this app can be found in [AI Studio](https://ai.studio/apps/drive/1Qx0faOvjmEykIEN7F0wdDpKI-03yUYeh).
 
 ## TODOs
-Things that I want to improve, priority ordered based on how important I think they are (higher in list) and how complex I think they will be to implement (lower in list).
+Things that I want to improve/implement, priority ordered based important (higher), implementation complexity (lower), complexity burden (lower):
 - Add tests for shanten calculations/use Rust's libriichi via WASM for calculations; I'm not aware of any problems, but it's not the most robust, and we need to add tests before tackling difficult game logic problems to be certain that our logic is robust.
 - Complex shape decomposition is completely non-functional
    - Expanding a complex shape should show all the combinations of simpler shapes that it can be interpreted as
@@ -18,9 +18,13 @@ Things that I want to improve, priority ordered based on how important I think t
   - chronological history; i.e. showing your discards
 - Add dora indicators, dealer/round winds
 - Calculate value of hands + yakus; show tiles that increase value of hands
+   - Show score / earned han when showing "Agari" for a winning hand
 - Visualize graph of draws/discards that can lead to completing a hand (or just a particular shape)
    - We can sort/quotient draw order where it is deterministic; e.g. if the 7m must be drawn to complete an 89m shape, we can split on that decision first to make the tree of possibilities less branchy
    - Significant amounts of pruning would probably be necessary for 3-shanten and lower hands (2-shanten is probably computationally feasible to just brute force?)
+- Setting for English vs Japanese terminology
+   - e.g. instead of 1-Shanten => 1-Away, Tenpai => Ready, Agari => Winning Shape, English vs Japanese Yaku names etc.
+   - We may want separate settings/toggles for different categories of term too, e.g. someone might want English Yaku names, but 1-Away, Ready, etc.
 
 ## Run Locally
 **Prerequisites:**  Node.js
