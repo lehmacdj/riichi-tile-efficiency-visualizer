@@ -5,6 +5,7 @@ My initial prototyping for this app was done in [AI Studio](https://ai.studio/ap
 
 ## TODOs
 Things that I want to improve/implement, priority ordered based important (higher), implementation complexity (lower), complexity burden (lower):
+- Load hand from URL
 - Move to WASM compiled libriichi. I think long term this is worth it both for performance and so that I don't have to (have Claude) implement all of the Riichi game logic
 - Complex shape decomposition is completely non-functional
    - Expanding a complex shape should show all the combinations of simpler shapes that it can be interpreted as
@@ -13,6 +14,8 @@ Things that I want to improve/implement, priority ordered based important (highe
    - Hovering the separate simple shapes should show the acceptance provided by that shape alone
    - The UI for the expand button doesn't look great
    - When two simple shapes are next to each other but don't actually improve ukeire at all, they should be treated as separate shapes in the UI. We only want to treat shapes as complex shapes if when combined the shapes have better/different acceptance than separately.
+- Allow highlighting the current draw
+- Allow hand to be in (hard-coded) non-sorted/combined shape order
 - Add history / ability to revert to previous states / undo
   - tree based history, e.g. to explore multiple branches, i.e. discarding different tiles from the same Hand
   - chronological history; i.e. showing your discards
