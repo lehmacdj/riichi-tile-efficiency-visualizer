@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import { partitionHand, identifyBlockType } from '../blocks';
 import { BlockType } from '../../../types';
-import { parseHand } from './testHelpers';
+import { parseHand } from '../notation';
 
 describe('identifyBlockType', () => {
   it('triplet is MENTSU', () => {

@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateShanten } from '../tiles';
-import { parseHand } from './testHelpers';
+import { parseHand } from '../notation';
 
 describe('calculateShanten', () => {
   // Basic sanity checks

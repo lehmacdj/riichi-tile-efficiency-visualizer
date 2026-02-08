@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { TileDefinition, WallState, HandBlock } from './types';
 import { INITIAL_WALL, MAX_TILES_IN_HAND, TILE_ORDER } from './constants';
-import { sortTiles, partitionHand, calculateShanten } from './utils/mahjong';
+import {
+  sortTiles, partitionHand, calculateShanten,
+  parseHand, formatHand,
+} from './utils/mahjong';
 import type { UkeireResult } from './utils/mahjong';
 import Wall from './components/Wall';
 import HandView from './components/HandView';
@@ -40,14 +43,47 @@ function getToggleButtonClass(isActive: boolean): string {
   return `${BUTTON_BASE} ${isActive ? BUTTON_TOGGLE_ON : BUTTON_TOGGLE_OFF}`;
 }
 
+function getInitialState(): {
+  hand: TileDefinition[];
+  wall: WallState;
+} {
+  const params = new URLSearchParams(window.location.search);
+  const handParam = params.get('hand');
+  if (!handParam) return { hand: [], wall: INITIAL_WALL };
+
+  const hand = parseHand(handParam);
+  const wall = { ...INITIAL_WALL };
+
+  // Subtract hand tiles from wall
+  for (const tile of hand) {
+    wall[tile.str] = Math.max(0, (wall[tile.str] || 0) - 1);
+  }
+
+  // Subtract visible tiles from wall
+  const visibleParam = params.get('visible');
+  if (visibleParam) {
+    const visible = parseHand(visibleParam);
+    for (const tile of visible) {
+      wall[tile.str] = Math.max(
+        0, (wall[tile.str] || 0) - 1
+      );
+    }
+  }
+
+  return { hand, wall };
+}
+
+const initialState = getInitialState();
+
 const App: React.FC = () => {
   // State
-  const [wall, setWall] = useState<WallState>(INITIAL_WALL);
-  const [hand, setHand] = useState<TileDefinition[]>([]);
+  const [wall, setWall] = useState<WallState>(initialState.wall);
+  const [hand, setHand] = useState<TileDefinition[]>(initialState.hand);
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null);
   const [hoveredBlock, setHoveredBlock] = useState<HandBlock | null>(null);
   const [isAutoDraw, setIsAutoDraw] = useState<boolean>(false);
   const [showBestDiscard, setShowBestDiscard] = useState<boolean>(false);
+  const [copied, setCopied] = useState(false);
 
   // Use the ukeire calculation hook
   const { status, result, getDiscardUkeire } = useUkeireCalculation({ hand, wall });
@@ -327,6 +363,45 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCopyUrl = useCallback(() => {
+    const base = window.location.origin
+      + window.location.pathname;
+    const params = new URLSearchParams();
+
+    if (hand.length > 0) {
+      params.set('hand', formatHand(hand));
+    }
+
+    // Compute visible tiles: tiles removed from wall
+    // that aren't in the hand
+    const handCounts: Record<string, number> = {};
+    for (const tile of hand) {
+      handCounts[tile.str] = (handCounts[tile.str] || 0) + 1;
+    }
+
+    const visibleTiles: TileDefinition[] = [];
+    for (const tile of TILE_ORDER) {
+      const initialCount = INITIAL_WALL[tile.str] || 0;
+      const wallCount = wall[tile.str] || 0;
+      const removed = initialCount - wallCount;
+      const inHand = handCounts[tile.str] || 0;
+      const visibleCount = removed - inHand;
+      for (let i = 0; i < visibleCount; i++) {
+        visibleTiles.push(tile);
+      }
+    }
+
+    if (visibleTiles.length > 0) {
+      params.set('visible', formatHand(visibleTiles));
+    }
+
+    const paramStr = params.toString();
+    const url = paramStr ? `${base}?${paramStr}` : base;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [hand, wall]);
+
   return (
     <div className="h-screen w-full bg-slate-900 text-slate-100 font-sans flex flex-col overflow-hidden">
 
@@ -446,6 +521,19 @@ const App: React.FC = () => {
               className={`${BUTTON_BASE} bg-slate-700 border-red-800/50 text-red-400 hover:bg-red-900/30 hover:text-red-300 hover:border-red-700/50`}
             >
               Clear
+            </button>
+
+            <div className="w-px h-5 bg-slate-600 mx-1" />
+
+            <button
+              onClick={handleCopyUrl}
+              className={`${BUTTON_BASE} ${
+                copied
+                  ? 'bg-green-700 border-green-600 text-white'
+                  : BUTTON_SECONDARY
+              }`}
+            >
+              {copied ? 'Copied!' : 'Copy URL'}
             </button>
           </div>
         </div>

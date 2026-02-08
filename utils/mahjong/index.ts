@@ -5,3 +5,4 @@
 export { getTileStr, sortTiles, countTiles, calculateShanten } from './tiles';
 export { partitionHand, identifyBlockType } from './blocks';
 export type { UkeireResult } from './tiles';
+export { parseHand, formatHand } from './notation';

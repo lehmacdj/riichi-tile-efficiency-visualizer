@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateHandUkeire } from '../_expensive';
-import { parseHand, createWallFromHand } from './testHelpers';
+import { parseHand, createWallFromHand } from '../notation';
 
 describe('calculateHandUkeire', () => {
   it('ryanmen wait accepts 2 tiles', () => {
