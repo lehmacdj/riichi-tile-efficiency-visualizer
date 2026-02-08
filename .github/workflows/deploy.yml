@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          repositories: lehmacdj.github.io
+
+      - name: Setup git user info
+        run: |
+          app_name='${{ steps.app-token.outputs.app-slug }}[bot]'
+          app_id="$(gh api "/users/$app_name" --jq .id)"
+          app_email="${app_id}+${app_name}@users.noreply.github.com"
+          git config --global user.name "$app_name"
+          git config --global user.email "$app_email"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Push to lehmacdj.github.io
+        run: |
+          set -euo pipefail
+          DEST=playing/riichi-mahjong/shape-visualizer
+          git clone --depth 1 \
+            "https://x-access-token:${DEPLOY_TOKEN}@github.com/lehmacdj/lehmacdj.github.io.git" \
+            site
+          rm -rf "site/${DEST}"
+          mkdir -p "site/${DEST}"
+          cp -r dist/* "site/${DEST}/"
+          cd site
+          git add -A
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Deploy shape-visualizer from ${GITHUB_SHA::7}"
+          git push
+        env:
+          DEPLOY_TOKEN: ${{ steps.app-token.outputs.token }}
